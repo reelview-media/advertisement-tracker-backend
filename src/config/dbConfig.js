@@ -7,16 +7,12 @@ const pool = new Pool({
 });
 
 const dbConnect = async () => {
-  try {
-    await pool.connect(); 
-    console.log("✅ Connected to Postgres");
-    //* Create tables if not exists
-    await createUserTable(pool);
-    return true;
-  } catch (err) {
-    console.error("DB connection error:", err);
-    throw err;
-  }
+  // verify connection
+  await pool.query("SELECT 1");
+  // create tables if not exists
+  await createUserTable(pool);
+  console.log("✅ Connected to DB");
 };
+
 
 module.exports = { pool, dbConnect };

@@ -1,62 +1,47 @@
-const { findUserByEmail } = require("../models/user.model");
-const { registerUserService } = require("../services/auth.services");
-const { generateToken } = require("../utils/jwt");
+const { handlerCreateUser } = require("../services/auth.services");
 
-const handleLogin = async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Email and password are required" });
-  }
+const handlerLoginUser = async (req, res) => {
   try {
-    const user = await findUserByEmail(email);
-    if (!user) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid credentials" });
-    }
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid credentials" });
-    }
-    // Generate JWT token
-    const token = generateToken({ id: user.id, email: user.email });
+    // Pass the full object returned by Passport
+    const { user, token } = await handlerCreateUser(req.user);
 
-    // Save user info in session
-    req.session.user = { id: user.id, email: user.email };
-
-    res.json({
-      success: true,
-      message: "Login successful",
-      token,
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.APP_MODE === "production",
+      maxAge: 24 * 60 * 60 * 1000,
     });
-  } catch (error) {
-    console.error("Login error:", err);
-    res.status(500).json({ success: false, message: "Internal server error" });
+
+    res.redirect("http://localhost:5173/dashboard");
+  } catch (err) {
+    console.error("Google callback error:", err.message);
+    res.status(500).send("Login failed. Please try again.");
   }
 };
 
-const handleRegister = async (req, res) => {
+const handlerLogoutUser = (req, res) => {
   try {
-    const { full_name, email, password, confirm_password } = req.body;
-    const response = await registerUserService({
-      full_name,
-      email,
-      password,
-      confirm_password,
-      session: req.session,
+    // Clear JWT cookie
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.APP_MODE === "production",
+      sameSite: "lax",
     });
-    return res.status(response.status).json(response.body);
-  } catch (error) {
-    console.error("Controller Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+
+    // Destroy session
+    if (req.session) {
+      req.session.destroy(err => {
+        if (err) console.error("Session destroy error:", err);
+      });
+    }
+
+    // Redirect or send response
+    res.status(200).json({ success: true, message: "Logged out successfully" });
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({ success: false, message: "Logout failed" });
   }
 };
 
-module.exports = { handleLogin, handleRegister };
+
+
+module.exports = { handlerLoginUser,handlerLogoutUser };

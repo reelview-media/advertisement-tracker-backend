@@ -3,9 +3,12 @@ const express = require("express");
 const session = require("express-session");
 const cookieParser = require("cookie-parser");
 const cors = require('cors');
+const passport = require("passport");
 //* Custome file...........
 const authRoutes = require("./routes/auth.routes");
+const dashboardRoutes = require('./routes/dashboard.routes');
 const { dbConnect } = require("./config/dbConfig");
+require("./config/passport");
 
 const app = express();
 const PORT = process.env.PORT;
@@ -13,17 +16,6 @@ const PORT = process.env.PORT;
 //! Middleware................
 app.use(express.json());
 app.use(cookieParser());
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.APP_MODE === "production" ? true : false,
-      maxAge: 24 * 60 * 60 * 1000,
-    }, // 1 day
-  })
-);
 
 //* Allow requests from your frontend
 app.use(cors({
@@ -32,9 +24,26 @@ app.use(cors({
     credentials: true 
 }));
 
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.APP_MODE === "production",
+      maxAge: 24 * 60 * 60 * 1000,
+    }, // 1 day
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+
 //! Routes............
 
-app.use("/api/v1", authRoutes);
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v2/dashboard", dashboardRoutes);
 
 //! Start server and connect DB connection
 app.listen(PORT, async () => {

@@ -1,40 +1,44 @@
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const { findUserByEmail, createUser } = require("../models/user.model");
+require("dotenv").config();
 
-// Google OAuth configuration
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "/api/v1/auth/google/callback"
-}, async (accessToken, refreshToken, profile, done) => {
-  try {
-    const email = profile.emails[0].value;
-    let user = await findUserByEmail(email);
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "http://localhost:8081/api/v1/auth/google/callback",
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        // Safe email extraction
+        const email = profile.emails?.[0]?.value || profile._json?.email;
+        if (!email) return done(new Error("No email found in Google profile"));
 
-    if (!user) {
-      // Create new user if doesn't exist
-      user = await createUser({
-        full_name: profile.displayName,
-        email,
-        hashedPassword: "", // OAuth user may not have password
-        phone: null
-      });
+        const profilePic = profile.photos?.[0]?.value || null;
+
+        console.log("profile Picture",profile.photos[0].value ,profile)
+
+        // Pass the Google profile + extracted info to the service layer
+        done(null, { profile, email, profilePic });
+      } catch (err) {
+        done(err, null);
+      }
     }
+  )
+);
+
+
+
+passport.serializeUser((user, done) => done(null, user.email));
+passport.deserializeUser(async (email, done) => {
+  try {
+    const user = await findUserByEmail(email);
     done(null, user);
   } catch (err) {
     done(err, null);
   }
-}));
-
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser(async (id, done) => {
-  // Optional: fetch user from DB
-  const user = await findUserByEmail(id); 
-  done(null, user);
 });
 
 module.exports = passport;

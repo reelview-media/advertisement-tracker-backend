@@ -30,6 +30,8 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
+      httpOnly:true,
+      sameSite:'lax',
       secure: process.env.APP_MODE === "production",
       maxAge: 24 * 60 * 60 * 1000,
     }, // 1 day
@@ -43,7 +45,7 @@ app.use(passport.session());
 //! Routes............
 
 app.use("/api/v1/auth", authRoutes);
-app.use("/api/v2/dashboard", dashboardRoutes);
+app.use("/api/v2", dashboardRoutes);
 
 //! Start server and connect DB connection
 app.listen(PORT, async () => {

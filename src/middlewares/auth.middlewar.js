@@ -9,8 +9,8 @@ const handleProtectRoute = (req, res, next) => {
 
     // verify token
     const decoded = verifyToken(token);
-    req.user = decoded; // attach user info to request
-    next(); // allow access
+    req.user = decoded; 
+    next(); 
   } catch (err) {
     return res.status(401).json({ message: "Unauthorized" });
   }

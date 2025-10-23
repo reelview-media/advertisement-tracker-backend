@@ -16,7 +16,6 @@ passport.use(
         const email = profile.emails?.[0]?.value || profile._json?.email;
         if (!email) return done(new Error("No email found in Google profile"));
         const profilePic = profile.photos?.[0]?.value || null;
-        console.log("inPassport",profilePic)
         done(null, { profile, email, profilePic });
       } catch (err) {
         done(err, null);

@@ -1,16 +1,19 @@
-const { handlerCreateUser } = require("../services/auth.services");
+const {
+  handleCreateUserService,
+  handleLogoutService,
+} = require("../services/auth.services");
+const { verifyToken } = require("../utils/jwt");
 
-const handlerLoginUser = async (req, res) => {
+//! This is login Controller. when user login................
+const handleLoginController = async (req, res) => {
   try {
-    // Pass the full object returned by Passport
-    const { user, token } = await handlerCreateUser(req.user);
-
+    //* handleCreateUserService This is user service . that connect to db and store user information.
+    const { user, token } = await handleCreateUserService(req.user);
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.APP_MODE === "production",
       maxAge: 24 * 60 * 60 * 1000,
     });
-
     res.redirect("http://localhost:5173/dashboard");
   } catch (err) {
     console.error("Google callback error:", err.message);
@@ -18,30 +21,36 @@ const handlerLoginUser = async (req, res) => {
   }
 };
 
-const handlerLogoutUser = (req, res) => {
+//! When user click on  logout button controller...........
+const handlerLogoutController = async (req, res) => {
   try {
-    // Clear JWT cookie
-    res.clearCookie("token", {
-      httpOnly: true,
-      secure: process.env.APP_MODE === "production",
-      sameSite: "lax",
-    });
-
-    // Destroy session
-    if (req.session) {
-      req.session.destroy(err => {
-        if (err) console.error("Session destroy error:", err);
+    const token = req.cookies.token;
+    const decoded = await verifyToken(token);
+    const email = decoded.email;
+    //* handleLogoutService This handler work when user click on logout button then in db is_Active status update false.
+    const isActive = await handleLogoutService(email);
+    if (isActive) {
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.APP_MODE === "production",
+        sameSite: "lax",
       });
+      if (req.session) {
+        req.session.destroy((err) => {
+          if (err) console.error("Session destroy error:", err);
+        });
+      }
+
+      return res
+        .status(200)
+        .json({ success: true, message: "Logged out successfully" });
     }
 
-    // Redirect or send response
-    res.status(200).json({ success: true, message: "Logged out successfully" });
+    res.status(500).json({ success: false, message: "Logout failed" });
   } catch (err) {
     console.error("Logout error:", err);
     res.status(500).json({ success: false, message: "Logout failed" });
   }
 };
 
-
-
-module.exports = { handlerLoginUser,handlerLogoutUser };
+module.exports = { handleLoginController, handlerLogoutController };

@@ -43,12 +43,12 @@ app.use(passport.session());
 
  
 //! Routes............
-
+ 
 app.use("/api/v1/auth", authRoutes);
-app.use("/api/v2", dashboardRoutes);
+app.use("/api/v1", dashboardRoutes);   //change karana ha....
 
 //! Start server and connect DB connection
-app.listen(PORT, async () => {
+app.listen(PORT, async () => {   //Setp -2 
   try {
     await dbConnect();
     console.log(`Server is running on http://localhost:${PORT}`);

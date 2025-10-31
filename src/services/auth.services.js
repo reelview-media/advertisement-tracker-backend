@@ -1,3 +1,4 @@
+const bcrypt = require('bcrypt');
 const {
   findUserByEmail,
   createUser,
@@ -6,22 +7,23 @@ const {
 } = require("../models/user.model");
 const { generateToken } = require("../utils/jwt");
 
-//! This handler work is call user_model and store user info in db.
-const handleCreateUserService = async ({ profile, email, profilePic }) => {
-  //* This handler update is_Active in db . when user login.........
-  await updateUserActiveStatus(email, true);
-  //* This handler check this email is present in db or not.....
+const handleCreateUserService = async ({ full_name, email, password, confirmPassword,profile }) => {
   let user = await findUserByEmail(email);
-  //* if User not found in DB. then create a new Details of user and store in DB.
   if (!user) {
+    let hashedPassword = null;
+    if (password && confirmPassword && password === confirmPassword) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
     user = await createUser({
-      full_name: profile.displayName || "Unknown",
+      full_name: full_name?full_name:profile?profile.displayName :"Unknown User",
       email,
-      profilePic: profilePic || "",
+      profilePic:profile?profile.photos[0].value : null,
+      password: hashedPassword,
     });
   }
 
-  //* updateLastLogin . This handler work is if user exist in db then update last_login data.
+  await updateUserActiveStatus(email, true);
   const updatedUser = await updateLastLogin(email);
 
   const token = generateToken(
@@ -32,7 +34,6 @@ const handleCreateUserService = async ({ profile, email, profilePic }) => {
   return { user: updatedUser, token };
 };
 
-//! When user logout. then run this modal. and update in db is_Active
 const handleLogoutService = async (email) => {
   await updateUserActiveStatus(email, false);
   return true;

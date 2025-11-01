@@ -4,12 +4,13 @@ const {
   handlerLogoutController,
   handleLoginController,
   handleRegisterController,
+  handleLoginWithEmailController,
 } = require("../controllers/auth.controller");
 const { handleProtectRoute } = require("../middlewares/auth.middlewar");
 
 const router = express.Router();
 
-// router.post("/login",handleLoginWithEmailController);
+router.post("/login",handleLoginWithEmailController);
 router.post("/register", handleRegisterController);
 router.get(
   "/google",

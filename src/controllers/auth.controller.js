@@ -2,8 +2,46 @@ const { findUserByEmail } = require("../models/user.model");
 const {
   handleCreateUserService,
   handleLogoutService,
+  handleLoginWithEmailService,
 } = require("../services/auth.services");
+const { setAuthCookie, clearAuthCookie } = require("../utils/cookie");
 const { verifyToken } = require("../utils/jwt");
+
+const handleLoginWithEmailController = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and password are required." });
+    }
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
+    }
+    const response = await handleLoginWithEmailService(user, password);
+    if (!response.status) {
+      return res
+        .status(401)
+        .json({ success: false, message: response.message });
+    }
+    setAuthCookie(res, response.token);
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      user: response.user,
+      token: response.token,
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error during login",
+    });
+  }
+};
 
 const handleRegisterController = async (req, res) => {
   try {
@@ -21,23 +59,27 @@ const handleRegisterController = async (req, res) => {
         message: "This email is already registered. Please log in instead.",
       });
 
-    const { user, token } = await handleCreateUserService({
+    const response  = await handleCreateUserService({
       full_name,
       email,
       password,
       confirmPassword,
     });
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.APP_MODE === "production",
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-    res.status(201).json({
+    if (!response.status) {
+      return res.status(400).json({
+        success: false,
+        message: response.message,
+      });
+    }
+    setAuthCookie(res, response.token);
+
+    return res.status(201).json({
       success: true,
       message: "Account created successfully",
-      data: user,
+      data: response.user,
+      token: response.token,
     });
-  } catch(error) {
+  } catch (error) {
     console.error("Error in register controller:", error.message);
     res.status(500).json({
       success: false,
@@ -64,15 +106,15 @@ const handleLoginController = async (req, res) => {
 const handlerLogoutController = async (req, res) => {
   try {
     const token = req.cookies.token;
+    if (!token)
+      return res
+        .status(401)
+        .json({ success: false, message: "No token found" });
     const decoded = await verifyToken(token);
     const email = decoded.email;
     const isActive = await handleLogoutService(email);
     if (isActive) {
-      res.clearCookie("token", {
-        httpOnly: true,
-        secure: process.env.APP_MODE === "production",
-        sameSite: "lax",
-      });
+      clearAuthCookie(res);
       if (req.session) {
         req.session.destroy((err) => {
           if (err) console.error("Session destroy error:", err);
@@ -95,4 +137,5 @@ module.exports = {
   handleLoginController,
   handlerLogoutController,
   handleRegisterController,
+  handleLoginWithEmailController,
 };

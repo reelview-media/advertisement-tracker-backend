@@ -16,7 +16,7 @@ router.get(
   "/google",
   passport.authenticate("google", {
     scope: ["profile", "email"],
-    // prompt: "select_account",   //controll choose email
+    prompt: "select_account",   //controll choose email
   })
 );
 router.get(
